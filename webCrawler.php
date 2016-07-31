@@ -1,20 +1,37 @@
 <?php
 //error_reporting(E_ALL); ini_set('display_errors', '1');
-error_reporting(E_NOTICE);
+//error_reporting(E_NOTICE);
 $allLinksFile="allLinks.txt";
 $linksWithDateFile="linksDate.txt";
 $sourceFile="source.txt";
 
-$day="19";
-$month="July";
-$year="2016";
+$date = $_GET["date"];
+$year = date('Y', strtotime($date));
+$month =substr(date('F', strtotime($date)),0,3);
+$day = date('d', strtotime($date));
+if(substr($day,0,1)=="0"){
+	$day=substr($day,1,1);
+}
+
+//$day="30";
+//$month="July";
+//$year="2016";
 //$server="http://www.niecdelhi.ac.in";  //not to end with a "/".
-$server="http://www.timesofindia.indiatimes.com";
-//$server="https://www.facebook.com";
+//$server="http://www.timesofindia.indiatimes.com";
+//$server="http://www.theverge.com";
 //$server="https://www.youtube.com";
 //$server="toCrawl.html";
 //$server="http://www.hindustantimes.com";
 //$server="https://en.wikipedia.org";
+//$server="http://stackoverflow.com";
+$server=$_GET["link"];
+if(substr($server,0,3)=="www"){
+	$server="http://".$_GET["link"];
+}
+if(substr($server,strlen($server)-1)=="/"){
+	$server=substr($server,0,strlen($server)-1);
+}
+
 $previousLink=$server;
 $countAllLinks=0;
 $countFinalLinks=0;
@@ -40,23 +57,27 @@ function createLocalFile($filename,$mode){   //$filename is name of local file t
 	return $handle ;
 }
 
-function getSourceCode($server){   //$server is name of remote whose source code is to be fetched
+function getSourceCode($server,$title){   //$server is name of remote whose source code is to be fetched
 	$handle =fopen($server,"r");
 	$source=file_get_contents($server);
 	fclose($handle);
 	//echo "<br>Source Code Retrived from ".$server."<br>";
 	if(filterLinkWithDate($GLOBALS["day"], $GLOBALS["month"], $GLOBALS["year"], $source)){
-		$dateLink=fopen("linksDate.txt","a");
-		fwrite($dateLink,$server."\n");
-		fclose($dateLink);
+	//	$dateLink=fopen("linksDate.txt","a");
+		//$dateLink=$dateLink.$server;
+		$dateLink=file_get_contents($GLOBALS["linksWithDateFile"]);
+		file_put_contents($GLOBALS["linksWithDateFile"],$dateLink.$server.">^<".$title."\n");
+		//fwrite($dateLink,$server."\n");
+		//fclose($dateLink);
 	 }
 	$GLOBALS["sourceNo"]++;
 	return $GLOBALS["sourceNo"].$source;
 }
 
-function writeToLocal($localHandle,$source){   //$handle is handle of local file to which $source is to be written and $source is the string 
-	                                      //to be written in to the file 
-	fwrite($localHandle, $source);
+function writeLinksToLocal($fileName,$source){  
+		//$data=file_get_contents($filename);							//$handle is handle of local file to which $source is to be written and $source is the string 
+	   file_put_contents($fileName,$source,FILE_APPEND);                                     //to be written in to the file 
+	//fwrite($localHandle, $source);
 	//echo substr($source,0,100)." ... and more content written to file<br>";	
 }
 
@@ -68,9 +89,9 @@ function writeSourceToLocal($source){
 function filterLinkWithDate($day,$month,$year,$source){
 
 	//$date1="(".$day."(.{2})?(.{1-2})?.".$month.".(.{1-2})?".$year.")i";
-	$date1="(".$day.".{0,4}".$month.".{0,4}".$year.")i";
-	$date2="(".$month.".{0,4}".$day.".{0,4}".$year.")i";
-	$date3="(".$year.".{0,4}".$month.".{0,4}".$day.".{0,4})i";
+	$date1="(".$day.".{0,25}".$month.".{0,25}".$year.")i";
+	$date2="(".$month.".{0,25}".$day.".{0,25}".$year.")i";
+	$date3="(".$year.".{0,25}".$month.".{0,25}".$day.".{0,25})i";
 
 	if(preg_match_all($date1,$source)||preg_match_all($date2,$source)||preg_match_all($date3,$source)){
 		return true;
@@ -134,13 +155,18 @@ function filterHyperlink($link){
 		if($len>6){
 			
 		if($len-6<=strrpos($hyper,".")){// || strpos($hyper,"?")){  //for links with specific extensions
-			writeToLocal($handleFinal,$hyper.">^<".$title."\n"); 
+			writeLinksToLocal($GLOBALS["finalLinksFile"],$hyper.">^<".$title."\n"); 
+			echo 'Link is-->  <a href="'.$hyper.'">'.$title.'</a><br>';
+			
 			$GLOBALS["countFinalLinks"]++;
 			
 		}else{
-			writeToLocal($handleAll,$hyper.">^<".$title."\n");  //for general links, cateogrization
+			writeLinksToLocal($GLOBALS["allLinksFile"],$hyper.">^<".$title."\n");  //for general links, cateogrization
+			echo 'Link is-->  <a href="'.$hyper.'">'.$title.'</a><br>';
 			$GLOBALS["countAllLinks"]++;
 		}
+		flush();
+		ob_flush();
 		
 	}
 	}
